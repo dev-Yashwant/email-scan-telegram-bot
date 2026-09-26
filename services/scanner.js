@@ -23,7 +23,7 @@ const compressData = (data) => {
  * @param {string[]} emails - Array of email addresses
  * @param {boolean} isVIP - Whether the user has VIP status
  * @param {string} userEmail - The email of the person scanning
- * @returns {Promise<Object>} - Object containing results array, total processed, and omitted count
+ * @returns {Promise<Object>} - Object containing results array, total processed, omitted count, and shareId
  */
 const scanEmails = async (emails, isVIP, userEmail = "anonymous") => {
     console.log(`--- Starting scan for ${userEmail} (${emails.length} emails, VIP: ${isVIP}) ---`);
@@ -36,6 +36,7 @@ const scanEmails = async (emails, isVIP, userEmail = "anonymous") => {
     // The API expects a newline-separated string
     const productsText = emailsToProcess.join('\n');
     let resultsArray = [];
+    let shareId = null;
 
     // Status counts for logging
     const statusCounts = {
@@ -118,7 +119,8 @@ const scanEmails = async (emails, isVIP, userEmail = "anonymous") => {
                     method: "bot",
                     completionTime: completionTime
                 });
-                console.log(`Scan logged to DB for ${userEmail}. ShareId: ${createdLog.shareId}`);
+                shareId = createdLog.shareId;
+                console.log(`Scan logged to DB for ${userEmail}. ShareId: ${shareId}`);
             } catch (logErr) {
                 console.error("Failed to save check log to DB:", logErr);
             }
@@ -138,18 +140,21 @@ const scanEmails = async (emails, isVIP, userEmail = "anonymous") => {
     return {
         results: resultsArray,
         totalProcessed: emailsToProcess.length,
-        omitted: omittedCount
+        omitted: omittedCount,
+        shareId: shareId
     };
 };
 
 /**
  * Handles the complete flow of processing a Telegram document (download, parse, scan, reply)
+ * Now includes a shareable link in the results message.
  * @param {Object} ctx - Telegraf context
  * @param {Object} user - User document from DB
  */
 const handleTelegramDocument = async (ctx, user) => {
     try {
         const document = ctx.message.document;
+        const WEBSITE_URL = process.env.FRONTEND_URL || "https://emailscan.in";
 
         // Security: VIP Check
         if (!user.vip) {
@@ -207,11 +212,23 @@ const handleTelegramDocument = async (ctx, user) => {
 
         const resultBuffer = Buffer.from(resultContent, 'utf-8');
 
+        // Build caption with share link
+        let caption = `✅ Scan completed!\n\n📊 *Summary:*\nTotal Processed: ${scanResult.totalProcessed}\n✅ Good: ${good}\n❌ Disabled: ${disabled}\n⚠️ Not Exist: ${notExist}\n`;
+        
+        if (scanResult.omitted > 0) {
+            caption += `\n⚠️ Omitted: ${scanResult.omitted} (Limit reached)\n`;
+        }
+
+        if (scanResult.shareId) {
+            caption += `\n🔗 *Share Link:*\n${WEBSITE_URL}/?share=${scanResult.shareId}\n`;
+            caption += `_Use this link to view full results on the website or share with others!_`;
+        }
+
         await ctx.replyWithDocument({
             source: resultBuffer,
             filename: `scan_results.txt`
         }, {
-            caption: `✅ Scan completed!\n\n📊 *Summary:*\nTotal Processed: ${scanResult.totalProcessed}\n✅ Good: ${good}\n❌ Disabled: ${disabled}\n⚠️ Not Exist: ${notExist}\n\n${scanResult.omitted > 0 ? "⚠️ Omitted: " + scanResult.omitted + " (Limit reached)\n" : ""}`,
+            caption: caption,
             parse_mode: 'Markdown'
         });
 

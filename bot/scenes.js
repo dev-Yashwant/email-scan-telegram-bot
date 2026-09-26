@@ -3,6 +3,17 @@ const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const { handleTelegramDocument } = require("../services/scanner");
 
+// Shared keyboard definitions
+const linkedKeyboard = Markup.keyboard([
+    ["👤 Profile", "📧 Check Accounts"],
+    ["📜 Check History", "🔗 API Key"],
+    ["📄 API Docs", "🌐 Visit Website"],
+    ["🚪 Logout"]
+], {
+    input_field_placeholder: "Choose an action or send a file...",
+    is_persistent: true
+}).resize();
+
 // --- Login Wizard ---
 const loginWizard = new Scenes.WizardScene(
     "LOGIN_SCENE",
@@ -85,14 +96,6 @@ const loginWizard = new Scenes.WizardScene(
             message += `- Plan: ${user.vip ? "VIP ⭐️" : "Free Player"}\n`;
             message += `- API Access: ${user.apiaccess ? "Enabled ✅" : "Disabled ❌"}\n\n`;
             message += `Use the menu below to navigate.`;
-
-            const linkedKeyboard = Markup.keyboard([
-                ["👤 Profile", "📧 Check Accounts"],
-                ["🌐 Visit Website", "🚪 Logout"]
-            ], {
-                input_field_placeholder: "Choose an action or send a file...",
-                is_persistent: true
-            }).resize();
 
             await ctx.replyWithMarkdown(message, linkedKeyboard);
 
@@ -204,14 +207,6 @@ const signupWizard = new Scenes.WizardScene(
             message += `- API Access: Disabled ❌\n\n`;
             message += `Use the menu below to navigate.`;
 
-            const linkedKeyboard = Markup.keyboard([
-                ["👤 Profile", "📧 Check Accounts"],
-                ["🌐 Visit Website", "🚪 Logout"]
-            ], {
-                input_field_placeholder: "Choose an action or send a file...",
-                is_persistent: true
-            }).resize();
-
             await ctx.replyWithMarkdown(message, linkedKeyboard);
 
             return ctx.scene.leave();
@@ -255,7 +250,11 @@ const uploadWizard = new Scenes.WizardScene(
             // Allow users to exit the scene by clicking other menu buttons or typing /cancel
             if (ctx.message.text) {
                 const text = ctx.message.text;
-                if (text === "/cancel" || text === "🚪 Logout" || text === "👤 Profile" || text === "🌐 Visit Website") {
+                const exitCommands = [
+                    "/cancel", "🚪 Logout", "👤 Profile", "🌐 Visit Website",
+                    "📜 Check History", "🔗 API Key", "📄 API Docs"
+                ];
+                if (exitCommands.includes(text)) {
                     await ctx.reply("Returning to main menu...");
                     return ctx.scene.leave();
                 }

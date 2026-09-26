@@ -4,12 +4,16 @@ A high-performance, standalone Node.js service for scanning email lists via Tele
 
 ## ✨ Features
 
-- **🔑 Secure Authentication**: Link your Telegram to your website account using `/login` or via the interactive Signup wizard.
-- **📁 Auto-File Processing**: Simply drag and drop `.txt` files containing email lists for instant scanning.
+- **🔑 Secure Authentication**: Link your Telegram to your website account using Login/Signup wizards, or auto-link via website deep-links.
+- **📁 Auto-File Processing**: Upload `.txt` files containing email lists for instant scanning with downloadable results.
+- **🔗 File Sharing Links**: Every scan generates a unique shareable link to view results on the web app.
+- **📜 Check History**: View your last 10 scan results from the past 7 days, with status breakdowns and share links.
+- **🔑 API Key Management**: Generate, view, and regenerate your API key directly from Telegram.
+- **📄 API Docs Reference**: Quick-reference API documentation card with endpoint, auth, and code examples.
 - **🌟 VIP Exclusive Access**: Integrated plan management to ensure premium features are reserved for VIP members.
-- **📊 Real-time Profile**: Monitor your plan status, expiry date, and API access directly from Telegram.
-- **🔍 Advanced Scanning**: Automatic results delivery in a downloadable `.txt` format.
+- **📊 Real-time Profile**: Monitor your plan status, expiry date, API key, and access directly from Telegram.
 - **🌐 Website Integration**: Unified database for consistent cross-platform user experience.
+- **📈 Monitoring Dashboard**: Web dashboard at port 4000 showing user stats and activity.
 
 ---
 
@@ -20,19 +24,22 @@ email-scan-telegram-bot/
 ├── 🤖 bot/
 │   └── scenes.js       # Interactive multi-step wizards (Login, Signup, Upload)
 ├── ⚙️ config/
-│   └── db.js           # MongoDB connection management
+│   └── db.js           # MongoDB connection management with retry
 ├── 🗄️ models/
-│   ├── User.js         # Unified User schema
-│   └── CheckingLog.js  # Scan activity logging
+│   ├── User.js         # Unified User schema (shared with web app)
+│   └── CheckingLog.js  # Scan activity logging with shareId
 ├── 🛠️ scripts/          # Administrative & Diagnostic utilities
 │   ├── check_linked.js # View all Telegram-linked users
 │   ├── check_logs.js   # Audit recent scanning logs
 │   ├── diagnostic.js   # Verify database & connection health
 │   └── list_dbs.js     # List available databases
 ├── 🚀 services/
-│   └── scanner.js      # Core scanning logic & file handling
-├── 📄 index.js         # Bot entry point & command handlers
-└── 📝 README.md        # Documentation
+│   └── scanner.js      # Core scanning logic, file handling, & share links
+├── 🖥️ views/
+│   └── index.ejs       # Monitoring dashboard template
+├── 📄 index.js         # Bot entry point, commands, history, API key, docs
+├── 📝 HOW_TO_RUN.txt   # Complete setup & testing guide
+└── 📝 README.md        # This file
 ```
 
 ---
@@ -40,7 +47,7 @@ email-scan-telegram-bot/
 ## 🛠️ Setup & Installation
 
 ### 1️⃣ Prerequisites
-- **Node.js**: v16+ recommended.
+- **Node.js**: v18+ recommended.
 - **MongoDB**: Access to the production/dev database URI.
 - **Telegram Token**: Get one from [@BotFather](https://t.me/BotFather).
 
@@ -54,6 +61,9 @@ Create or edit your `.env` file:
 ```env
 TELEGRAM_BOT_TOKEN="your_bot_token"
 MONGODB_URI="your_mongodb_connection_string"
+FRONTEND_URL="http://localhost:3000"
+DASHBOARD_PORT=4000
+VIP_GMAIL_CHECK_URL="http://65.109.63.238:5000/process-emails"
 ```
 
 ### 4️⃣ Launching the Bot
@@ -65,18 +75,42 @@ npm start
 npm run dev
 ```
 
+> 📖 For the complete setup guide including running both the web app and bot simultaneously, see [HOW_TO_RUN.txt](HOW_TO_RUN.txt).
+
 ---
 
-## 🤖 Bot Commands & Usage
+## 🤖 Bot Menu & Commands
 
-### User Commands
-- `/start`: Initialize the bot and view your account menu.
-- **👤 Profile**: Check your current plan (Free/VIP) and API access.
-- **🔍 Check Accounts**: Enter the scanning wizard (VIP only).
-- **📤 Logout**: Unlink your Telegram from your Email-Scan account.
+### Telegram Menu Layout (After Login)
+```
+┌─────────────────┬──────────────────┐
+│  👤 Profile     │  📧 Check Accts  │
+├─────────────────┼──────────────────┤
+│  📜 Check Hist  │  🔗 API Key      │
+├─────────────────┼──────────────────┤
+│  📄 API Docs    │  🌐 Website      │
+├─────────────────┴──────────────────┤
+│          🚪 Logout                 │
+└────────────────────────────────────┘
+```
 
-### Automated Features
-- **File Upload**: Send any `.txt` file containing `email:pass` or just `email` lists to trigger an automatic scan if you are a VIP user.
+### Feature Details
+
+| Button | Feature | VIP Required |
+|--------|---------|:------------:|
+| 👤 Profile | View username, email, plan, expiry, API status | No |
+| 📧 Check Accounts | Upload .txt file to scan emails | Yes |
+| 📜 Check History | View last 10 scans (7-day window) with share links | Yes |
+| 🔗 API Key | Generate/view/regenerate your API key | Yes + API Access |
+| 📄 API Docs | Quick reference for the Email Scan API | No |
+| 🌐 Visit Website | Open the web app | No |
+| 🚪 Logout | Unlink Telegram from your account | No |
+
+### Scan Results with Share Links
+After every successful scan, the bot sends:
+- A downloadable `scan_results.txt` file
+- A summary with Good/Disabled/NotExist counts
+- A **shareable link** (`{FRONTEND_URL}/history?uuid={shareId}`) to view full results on the web
 
 ---
 
@@ -84,6 +118,8 @@ npm run dev
 Located in the `scripts/` directory for system maintenance:
 - `node scripts/diagnostic.js`: Quick health check for DB connectivity.
 - `node scripts/check_linked.js`: List all users currently using the bot.
+- `node scripts/check_logs.js`: View recent scan activity logs.
+- `node scripts/list_dbs.js`: List available MongoDB databases.
 
 ---
 
